@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>职业培训师题库在线练习</title>
+    <meta name="theme-color" content="#176f75" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="职业培训师题库" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>职业培训师题库在线练习</h1>
+        <p id="sourceLine"></p>
+      </div>
+      <div class="summary" id="summary"></div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <div class="group">
+          <label for="mode">页面</label>
+          <select id="mode">
+            <option value="practice">答题练习</option>
+            <option value="first">首次答对</option>
+            <option value="again">非首次答对</option>
+          </select>
+        </div>
+
+        <div class="group">
+          <label for="typeFilter">题型</label>
+          <select id="typeFilter">
+            <option value="all">全部题型</option>
+            <option value="single">单选题</option>
+            <option value="multiple">多选题</option>
+            <option value="judgement">判断题</option>
+            <option value="subjective">简答题</option>
+          </select>
+        </div>
+
+        <div class="group">
+          <label for="search">搜索</label>
+          <input id="search" type="search" placeholder="题干关键词" />
+        </div>
+
+        <div class="actions">
+          <button id="prevBtn" type="button">上一题</button>
+          <button id="nextBtn" type="button">下一题</button>
+        </div>
+
+        <div class="actions">
+          <button id="resetCurrentBtn" type="button">重置本题</button>
+          <button id="resetAllBtn" type="button">清空记录</button>
+        </div>
+
+        <div class="progressBlock">
+          <div class="progressLabels">
+            <span>完成进度</span>
+            <span id="progressText"></span>
+          </div>
+          <div class="progressTrack">
+            <div id="progressBar"></div>
+          </div>
+        </div>
+
+        <div class="legend">
+          <span><i class="dot fresh"></i>未作答</span>
+          <span><i class="dot first"></i>首次答对</span>
+          <span><i class="dot again"></i>非首次答对</span>
+        </div>
+      </aside>
+
+      <section class="content">
+        <div class="questionNav" id="questionNav"></div>
+        <article class="questionCard" id="questionCard"></article>
+      </section>
+    </main>
+
+    <script src="questions-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
