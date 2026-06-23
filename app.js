@@ -10,11 +10,13 @@ const typeNames = {
   subjective: "简答题",
 };
 
-let state = loadState();
+let progress = loadProgress();
+let state = progress.records;
 let currentList = [];
-let currentPosition = 0;
+let currentPosition = progress.ui.currentPosition || 0;
 let selected = [];
 let advanceTimer = null;
+let pendingRestoreQuestionId = progress.ui.currentQuestionId || "";
 
 const els = {
   sourceLine: document.querySelector("#sourceLine"),
@@ -32,16 +34,55 @@ const els = {
   questionCard: document.querySelector("#questionCard"),
 };
 
-function loadState() {
+restoreControls();
+
+function defaultProgress() {
+  return {
+    version: 2,
+    records: {},
+    ui: {
+      mode: "practice",
+      typeFilter: "all",
+      search: "",
+      currentQuestionId: "",
+      currentPosition: 0,
+    },
+    savedAt: "",
+  };
+}
+
+function loadProgress() {
   try {
-    return JSON.parse(localStorage.getItem(storageKey)) || {};
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return defaultProgress();
+    const parsed = JSON.parse(raw);
+    if (parsed.records && parsed.ui) {
+      return { ...defaultProgress(), ...parsed, ui: { ...defaultProgress().ui, ...parsed.ui } };
+    }
+    return { ...defaultProgress(), records: parsed || {} };
   } catch {
-    return {};
+    return defaultProgress();
   }
 }
 
-function saveState() {
-  localStorage.setItem(storageKey, JSON.stringify(state));
+function saveProgress() {
+  progress.records = state;
+  progress.ui = {
+    mode: els.mode.value,
+    typeFilter: els.typeFilter.value,
+    search: els.search.value,
+    currentQuestionId: currentList[currentPosition]?.id || progress.ui.currentQuestionId || "",
+    currentPosition,
+  };
+  progress.savedAt = new Date().toISOString();
+  localStorage.setItem(storageKey, JSON.stringify(progress));
+}
+
+function restoreControls() {
+  if (!els.mode) return;
+  els.mode.value = progress.ui.mode || "practice";
+  els.typeFilter.value = progress.ui.typeFilter || "all";
+  els.search.value = progress.ui.search || "";
 }
 
 function getRecord(id) {
@@ -56,7 +97,7 @@ function getRecord(id) {
 
 function setRecord(id, patch) {
   state[id] = { ...getRecord(id), ...patch };
-  saveState();
+  saveProgress();
 }
 
 function normalizeAnswer(values) {
@@ -127,11 +168,29 @@ function statusPill(question) {
   return '<span class="pill statusTag bad">需继续学习</span>';
 }
 
+function syncCurrentPosition() {
+  currentList = filteredQuestions();
+  if (!currentList.length) {
+    currentPosition = 0;
+    return;
+  }
+
+  const savedId = pendingRestoreQuestionId;
+  const savedIndex = savedId ? currentList.findIndex((question) => question.id === savedId) : -1;
+  if (savedIndex >= 0) {
+    currentPosition = savedIndex;
+    pendingRestoreQuestionId = "";
+    return;
+  }
+
+  currentPosition = Math.min(Math.max(currentPosition, 0), currentList.length - 1);
+}
+
 function renderQuestion() {
   renderSummary();
-  currentList = filteredQuestions();
-  if (currentPosition >= currentList.length) currentPosition = Math.max(0, currentList.length - 1);
+  syncCurrentPosition();
   renderNav();
+  saveProgress();
 
   if (!currentList.length) {
     els.questionCard.innerHTML = '<div class="empty">当前筛选条件下没有题目。</div>';
@@ -329,7 +388,7 @@ els.resetCurrentBtn.addEventListener("click", () => {
   if (!question) return;
   clearTimeout(advanceTimer);
   delete state[question.id];
-  saveState();
+  saveProgress();
   renderQuestion();
 });
 
@@ -337,7 +396,10 @@ els.resetAllBtn.addEventListener("click", () => {
   if (!confirm("确定清空全部作答记录？")) return;
   clearTimeout(advanceTimer);
   state = {};
-  saveState();
+  progress = defaultProgress();
+  restoreControls();
+  currentPosition = 0;
+  saveProgress();
   renderQuestion();
 });
 
@@ -345,6 +407,7 @@ els.resetAllBtn.addEventListener("click", () => {
   element.addEventListener("input", () => {
     clearTimeout(advanceTimer);
     currentPosition = 0;
+    saveProgress();
     renderQuestion();
   });
 });
@@ -355,10 +418,17 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "ArrowRight") move(1);
 });
 
+window.addEventListener("pagehide", saveProgress);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") saveProgress();
+});
+
 renderQuestion();
 
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+    navigator.serviceWorker.register("./sw.js").then((registration) => {
+      registration.update().catch(() => {});
+    }).catch(() => {});
   });
 }
